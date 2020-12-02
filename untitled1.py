@@ -66,38 +66,15 @@ def load_csv(csv_list):
     return feat, labels
 #%%
     
-#class model_nn():
-#    def __init__(self, input_shape):
-#        self.input_shape = input_shape
-#    def model(self):    
-#        model = Sequential()
-#        model.add(L.Conv1D(64, strides=2, kernel_size=4, activation='relu', padding='same', input_shape=self.input_shape))
-#        model.add(L.Conv1D(128, strides=2, kernel_size=4, activation='relu', padding='same'))
-#        model.add(L.Conv1D(256, strides=2, kernel_size=4, activation='relu', padding='same'))
-#        model.add(L.Conv1D(512, strides=2, kernel_size=4, activation='relu', padding='same'))
-#        model.add(L.Flatten())
-#        model.add(L.Dense(1024, activation='relu'))
-#        model.add(L.Dropout(0.2))
-#        model.add(L.Dense(128, activation='relu'))
-#        model.add(L.Dropout(0.2))
-#        model.add(L.Dense(1, activation='sigmoid'))
-#    
-#        # Compile the model
-#        opt = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-#        model.compile(loss=binary_crossentropy,
-#                      optimizer=opt,
-#                      metrics=['binary_accuracy'])
-#        return model
-    
 class model_nn():
     def __init__(self, input_shape):
         self.input_shape = input_shape
     def model(self):    
         model = Sequential()
-        model.add(L.Conv2D(64, strides=2, kernel_size=4, activation='relu', padding='same', input_shape=self.input_shape))
-        model.add(L.Conv2D(128, strides=2, kernel_size=4, activation='relu', padding='same'))
-        model.add(L.Conv2D(256, strides=2, kernel_size=4, activation='relu', padding='same'))
-        model.add(L.Conv2D(512, strides=2, kernel_size=4, activation='relu', padding='same'))
+        model.add(L.Conv1D(64, strides=2, kernel_size=4, activation='relu', padding='same', input_shape=self.input_shape))
+        model.add(L.Conv1D(128, strides=2, kernel_size=4, activation='relu', padding='same'))
+        model.add(L.Conv1D(256, strides=2, kernel_size=4, activation='relu', padding='same'))
+        model.add(L.Conv1D(512, strides=2, kernel_size=4, activation='relu', padding='same'))
         model.add(L.Flatten())
         model.add(L.Dense(1024, activation='relu'))
         model.add(L.Dropout(0.2))
@@ -111,6 +88,57 @@ class model_nn():
                       optimizer=opt,
                       metrics=['binary_accuracy'])
         return model
+    
+#class model_nn():
+#    def __init__(self, input_shape):
+#        self.input_shape = input_shape
+#    def model(self):    
+#        model = Sequential()
+#        model.add(L.Conv2D(64, strides=2, kernel_size=4, activation='relu', padding='same', input_shape=self.input_shape))
+#        model.add(L.Conv2D(128, strides=2, kernel_size=4, activation='relu', padding='same'))
+#        model.add(L.Conv2D(256, strides=2, kernel_size=4, activation='relu', padding='same'))
+#        model.add(L.Conv2D(512, strides=2, kernel_size=4, activation='relu', padding='same'))
+#        model.add(L.Flatten())
+#        model.add(L.Dense(1024, activation='relu'))
+#        model.add(L.Dropout(0.2))
+#        model.add(L.Dense(128, activation='relu'))
+#        model.add(L.Dropout(0.2))
+#        model.add(L.Dense(1, activation='sigmoid'))
+#    
+#        # Compile the model
+#        opt = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+#        model.compile(loss=binary_crossentropy,
+#                      optimizer=opt,
+#                      metrics=['binary_accuracy'])
+#        return model
+        
+#%%
+        
+def get_contextual(t, features, labels, groups):
+    features_new = np.empty((0,1000))
+    groups_new = np.empty((0,1))
+    labels_new = np.empty((0,1))
+    for i in range(0, len(labels)-t, t):
+        # only mean the instances within the same groups(subjects) and ignore ones of the transition
+        if groups[i] == groups[i+t]:        
+            temp_feat = features[i:i+t]
+            # mean for every t seconds
+            mean_feat = np.mean(temp_feat, axis=0)
+            #mean_feat = temp_feat
+            mean_feat = np.reshape(mean_feat, (1,1000))
+        else:
+            pass
+        features_new = np.vstack((features_new, mean_feat))
+        labels_new = np.vstack((labels_new, labels[i]))
+        groups_new = np.vstack((groups_new, groups[i]))
+    labels_new = labels_new.astype(int)
+    groups_new = groups_new.reshape((groups_new.shape[0], ))
+    groups_new = groups_new.astype(int)
+    
+    #labels_new = labels
+    #groups_new = groups
+    #features_new = features
+    return features_new, labels_new, groups_new
     
 #%%
 sound_dir = './'
@@ -137,56 +165,51 @@ groups = np.asarray(groups)
 
 #%%
 # keep only relevant instances (2 and m)
-idx_voice = np.where(labels == '2')
+idx_1 = np.where(labels == '1')
+idx_2 = np.where(labels == '2')
 idx_mixed = np.where(labels == 'm')
-labels_voice = labels[idx_voice]
-labels_mixed = labels[idx_mixed]
-labels = np.concatenate((labels_voice, labels_mixed))
-features_voice = features[idx_voice]
-features_mixed = features[idx_mixed]
-features = np.concatenate((features_voice, features_mixed))
-groups_voice = groups[idx_voice]
-groups_mixed = groups[idx_mixed]
-groups = np.concatenate((groups_voice, groups_mixed))
 
-idx_mixed = np.where(labels == 'm')   
-labels[idx_mixed] = 0
-idx_voice = np.where(labels == '2')   
-labels[idx_voice] = 1
+labels_1 = labels[idx_1]
+labels_2 = labels[idx_2]
+labels_mixed = labels[idx_mixed]
+labels = np.concatenate((labels_1, labels_2))
+
+features_1 = features[idx_1]
+features_2 = features[idx_2]
+features_mixed = features[idx_mixed]
+features = np.concatenate((features_1, features_2))
+
+groups_1 = groups[idx_1]
+groups_2 = groups[idx_2]
+groups_mixed = groups[idx_mixed]
+groups = np.concatenate((groups_1, groups_2))
+
+idx_1 = np.where(labels == '2')   
+labels[idx_1] = 0
+idx_2 = np.where(labels == '1')   
+labels[idx_2] = 1
 
 labels = labels.astype(int) 
+idx_temp = np.where(labels_1 == '2') 
+labels_1[idx_temp] = 0
+idx_temp = np.where(labels_2 == '1') 
+labels_2[idx_temp] = 1
+idx_temp = np.where(labels_mixed == 'm') 
+labels_mixed[idx_temp] = 3
 
 #%%
 # get a contextual instance based on each unit instance
-t= 10
-features_new = np.empty((0,1000))
-groups_new = np.empty((0,1))
-labels_new = np.empty((0,1))
-for i in range(0, len(labels)-t, t):
-    # only mean the instances within the same groups(subjects) and ignore ones of the transition
-    if groups[i] == groups[i+t]:        
-        temp_feat = features[i:i+t]
-        # mean for every t seconds
-        mean_feat = np.mean(temp_feat, axis=0)
-        #mean_feat = temp_feat
-        mean_feat = np.reshape(mean_feat, (1,1000))
-    else:
-        pass
-    features_new = np.vstack((features_new, mean_feat))
-    labels_new = np.vstack((labels_new, labels[i]))
-    groups_new = np.vstack((groups_new, groups[i]))
-labels_new = labels_new.astype(int)
-groups_new = groups_new.reshape((groups_new.shape[0], ))
-groups_new = groups_new.astype(int)
 
-#labels_new = labels
-#groups_new = groups
-#features_new = features
+features_new, labels_new, groups_new = get_contextual(3, features, labels, groups)
+features_1_test, labels_1_test, groups_1_test = get_contextual(3, features_1, labels_1, groups_1)
+features_2_test, labels_2_test, groups_2_test = get_contextual(3, features_2, labels_2, groups_2)
+features_m_test, labels_m_test, groups_m_test = get_contextual(3, features_mixed, labels_mixed, groups_mixed)
+
 #%%
-RF = True
+RF = False
 if RF == True:
     seed(0)
-    predict = True   # True, False
+    predict = False   # True, False
     save_model_path = './models/RF/'
     check_dirs.check_dir(save_model_path)
     #kfold = StratifiedKFold(n_splits=5, shuffle=False, random_state=None)
@@ -237,18 +260,22 @@ if RF == True:
 
           print('f1: ', f1, '\n acc: ', acc)
 #%%
-seed(0)
-# keras seed
-set_seed(0)
-#features_new = np.expand_dims(features_new, axis=-1).astype(float)
-#%%
-          
-NN = False
+NN = True
 if NN:
-    predict = False
+    seed(0)
+    # keras seed
+    set_seed(0)
+    features_new = np.expand_dims(features_new, axis=-1).astype(float)
+    features_1_test = np.expand_dims(features_1_test, axis=-1).astype(float)
+    features_2_test = np.expand_dims(features_2_test, axis=-1).astype(float)
+    features_m_test = np.expand_dims(features_m_test, axis=-1).astype(float)
+    
+#%%        
+if NN:
+    predict = True
     save_model_path = './models/'
     check_dirs.check_dir(save_model_path)
-    batch_size = 128
+    batch_size = 32
     lppo = LeavePGroupsOut(n_groups=1)
     #lppo = GroupKFold(n_splits=2)
     #kfold = StratifiedKFold(n_splits=5, shuffle=False, random_state=None)
@@ -260,12 +287,12 @@ if NN:
         for train, test in lppo.split(features_new, labels_new, groups_new):
               feat_train, labels_train = features_new[train], labels_new[train]
               feat_test, labels_test = features_new[test], labels_new[test]
-              model_fold = model_nn(input_shape=(t, feat_size, 1)).model()
+              model_fold = model_nn(input_shape=(feat_size, 1)).model()
 
               # Fit data to model, only models with the best val acc (unbalanced) are saved
               model_fold.fit(feat_train, labels_train,
                           batch_size=batch_size,
-                          epochs=5,
+                          epochs=20,
                           validation_data=(feat_test, labels_test),
                           verbose=2,
                           callbacks=[K.callbacks.ModelCheckpoint(save_model_path+"fold%01d-epoch_{epoch:02d}-acc_{val_binary_accuracy:.4f}.h5" %fold_no, 
@@ -285,7 +312,7 @@ if NN:
           for train, test in lppo.split(features_new, labels_new, groups=groups_new):
               feat_train, labels_train = features_new[train], labels_new[train]
               feat_test, labels_test = features_new[test], labels_new[test]
-              model_pred = model_nn(input_shape=(t, feat_size, 1)).model()
+              model_pred = model_nn(input_shape=(feat_size, 1)).model()
 
               model_pred.load_weights(models[fold_no - 1])
               # prediction
@@ -304,3 +331,12 @@ if NN:
           f1 = np.mean(f1_per_fold)
           acc = np.mean(acc_per_fold)
           print('acc: ', acc, '\n f1: ', f1)
+          
+#%%
+thres = True         
+if thres:
+    model_pred = model_nn(input_shape=(feat_size, 1)).model()
+    model_pred.load_weights(models[0])
+    pred_prob = model_pred.predict(features_m_test)
+    prob_mean = np.mean(pred_prob)
+    print(prob_mean)
